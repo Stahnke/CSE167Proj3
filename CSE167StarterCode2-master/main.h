@@ -11,5 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "window.h"
+#include <iostream>
+#include <list>
 
 #endif

@@ -3,6 +3,8 @@
 const char* window_title = "GLFW Starter Project";
 Cube * cube;
 Cube * cube2;
+MatrixTransform * matTransform;
+MatrixTransform * matTransform2;
 Skybox * skybox;
 GLint shaderProgram;
 GLint skyboxShaderProgram;
@@ -15,8 +17,8 @@ GLint skyboxShaderProgram;
 #define SKYBOX_FRAGMENT_SHADER_PATH "../skyboxShader.frag"
 
 // Default camera parameters
-glm::vec3 cam_pos(0.0f, 0.0f, 20.0f);		// e  | Position of camera
-glm::vec3 cam_look_at(0.0f, 0.0f, 0.0f);	// d  | This is where the camera looks at
+glm::vec3 cam_pos(0.0f, 0.0f, 0.0f);		// e  | Position of camera
+glm::vec3 cam_look_at(0.0f, 0.0f, -100.0f);	// d  | This is where the camera looks at
 glm::vec3 cam_up(0.0f, 1.0f, 0.0f);			// up | What orientation "up" is
 
 int Window::width;
@@ -24,6 +26,9 @@ int Window::height;
 
 glm::mat4 Window::P;
 glm::mat4 Window::V;
+glm::mat4 Window::camTransform;
+glm::mat4 Window::camRotate;
+glm::mat4 Window::camRotatePos;
 
 int Movement;
 const int NONE = 0;
@@ -38,12 +43,25 @@ glm::vec3 lastPoint;
 
 void Window::initialize_objects()
 {
-	cube = new Cube();
-	skybox = new Skybox();
-
 	// Load the shader program. Make sure you have the correct filepath up top
 	shaderProgram = LoadShaders(VERTEX_SHADER_PATH, FRAGMENT_SHADER_PATH);
 	skyboxShaderProgram = LoadShaders(SKYBOX_VERTEX_SHADER_PATH, SKYBOX_FRAGMENT_SHADER_PATH);
+
+	glm::mat4 toWorld = glm::mat4(1.0f);
+
+	//Set first cube at origin
+	cube = new Cube(shaderProgram);
+	matTransform = new MatrixTransform(toWorld);
+	matTransform->addChild(cube);
+
+	//Set second cube on top of first cube
+	cube2 = new Cube(shaderProgram);
+	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, 5.0f, 0.0f }) * toWorld;
+	matTransform2 = new MatrixTransform(toWorld);
+	matTransform2->addChild(cube2);
+
+	//Set the skybox
+	skybox = new Skybox();
 }
 
 // Treat this as a destructor function. Delete dynamically allocated memory here.
@@ -126,8 +144,8 @@ void Window::display_callback(GLFWwindow* window)
 	// Clear the color and depth buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
-	//Relocat the camera
-	V = glm::lookAt(cam_pos, cam_look_at, cam_up);
+	//Transform the camera
+	transformCamera();
 
 	// Use the shader of programID
 	glUseProgram(skyboxShaderProgram);
@@ -139,8 +157,10 @@ void Window::display_callback(GLFWwindow* window)
 	glUseProgram(shaderProgram);
 
 	// Render the cube
-	cube->draw(shaderProgram);
-
+	//cube->draw();
+	matTransform->draw(V);
+	matTransform2->draw(V);
+	
 	// Gets events, including input such as keyboard and mouse or window resizing
 	glfwPollEvents();
 	// Swap buffers
@@ -211,6 +231,7 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 
 	glm::vec3 direction;
 	glm::vec3 curPoint;
+	float rot_angle;
 
 	// Handle any necessary mouse movements
 	switch (Movement)
@@ -225,16 +246,16 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 
 		if (velocity > 0.0001) // If little movement - do nothing.
 		{
-			/*
+			
 			// Rotate about the axis that is perpendicular to the great circle connecting the mouse movements.
 			glm::vec3 rotAxis;
 			rotAxis = glm::cross(lastPoint, curPoint);
 			rot_angle = velocity * m_ROTSCALE;
-			*/
 
 			//Apply the rotation
 
-			rotateCamera({direction.x * m_TRANSSCALE, direction.y * m_TRANSSCALE, 0});
+			rotateCamera(-rot_angle, rotAxis);
+			//rotateCamera({ direction.x * m_TRANSSCALE, direction.y * m_TRANSSCALE, 0 });
 		}
 		break;
 	}
@@ -307,18 +328,36 @@ glm::vec3 Window::trackBallMapping(glm::vec2 point)
 }
 
 void Window::translateCamera(glm::vec3 transVec) {
-	cam_pos += transVec;
-	cam_look_at += transVec;
+	camTransform = glm::translate(glm::mat4(1.0f), transVec) * camTransform;
 	//cout << "cam_pos.x = " << cam_pos.x << "cam_pos.y = " << cam_pos.y << "cam_pos.y = " << cam_pos.z << endl;
 }
 
-void Window::rotateCamera(glm::vec3 transVec) {
-	cam_look_at += transVec;
-	//cout << "cam_pos.x = " << cam_pos.x << "cam_pos.y = " << cam_pos.y << "cam_pos.y = " << cam_pos.z << endl;
+void Window::rotateCamera(float rot_angle, glm::vec3 rotAxis) {
+	camRotate = glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * camRotate;
+	camRotatePos = camRotatePos * glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis);
 }
 
 void Window::resetCamera() {
-	cam_pos = { 0.0f, 0.0f, 20.0f };
-	cam_look_at = { 0.0f, 0.0f, 0.0f };
-	cam_up = { 0.0f, 1.0f, 0.0f };
+	camTransform = glm::mat4(1.0f);
+	camRotate = glm::mat4(1.0f);
+}
+
+void Window::transformCamera() {
+
+	glm::vec3 outCam_pos; // = cam_pos;
+	outCam_pos = glm::vec3(camRotate * glm::vec4(cam_pos, 1.0f));
+	outCam_pos = glm::vec3(camTransform * glm::vec4(outCam_pos, 1.0f));
+	//outCam_pos = glm::vec3(camRotatePos * glm::vec4(outCam_pos, 1.0f));
+
+	glm::vec3 outCam_look_at; //= cam_look_at;
+	outCam_look_at = glm::vec3(camRotate * glm::vec4(cam_look_at, 1.0f));
+	outCam_look_at = glm::vec3(camTransform * glm::vec4(outCam_look_at, 1.0f));
+
+	glm::vec3 outCam_up = cam_up;
+	//outCam_up = glm::vec3(camRotate * glm::vec4(cam_up, 1.0f));
+	//outCam_up = glm::vec3(camTransform * glm::vec4(outCam_up, 1.0f));
+	
+	V = glm::lookAt(outCam_pos, outCam_look_at, outCam_up);
+	
+	//cout << "x = " << outCam_look_at.x << " y = " << outCam_look_at.y << " z = " << outCam_look_at.z << endl;
 }

@@ -11,6 +11,8 @@
 #endif
 #include <GLFW/glfw3.h>
 #include "Cube.h"
+#include "Sphere.h"
+#include "MatrixTransform.h"
 #include "Skybox.h"
 #include "shader.h"
 
@@ -30,6 +32,10 @@ class Window
 {
 public:
 
+	static glm::mat4 camTransform;
+	static glm::mat4 camRotate;
+	static glm::mat4 camRotatePos;
+
 	static int width;
 	static int height;
 	static glm::mat4 P; // P for projection
@@ -48,8 +54,9 @@ public:
 	static glm::vec3 trackBallMapping(glm::vec2 point);
 
 	static void translateCamera(glm::vec3 transVec);
-	static void rotateCamera(glm::vec3 transVec);
+	static void rotateCamera(float rot_angle, glm::vec3 transVec);
 	static void resetCamera();
+	static void transformCamera();
 
 };
 

@@ -1,5 +1,6 @@
 #include "main.h"
 
+
 GLFWwindow* window;
 
 void error_callback(int error, const char* description)

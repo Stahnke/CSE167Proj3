@@ -20,16 +20,26 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Cube.h" />
+    <ClInclude Include="..\Geode.h" />
+    <ClInclude Include="..\Group.h" />
     <ClInclude Include="..\main.h" />
+    <ClInclude Include="..\MatrixTransform.h" />
+    <ClInclude Include="..\Node.h" />
     <ClInclude Include="..\shader.h" />
     <ClInclude Include="..\Skybox.h" />
+    <ClInclude Include="..\Sphere.h" />
     <ClInclude Include="..\Window.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Cube.cpp" />
+    <ClCompile Include="..\Geode.cpp" />
+    <ClCompile Include="..\Group.cpp" />
     <ClCompile Include="..\main.cpp" />
+    <ClCompile Include="..\MatrixTransform.cpp" />
+    <ClCompile Include="..\Node.cpp" />
     <ClCompile Include="..\shader.cpp" />
     <ClCompile Include="..\Skybox.cpp" />
+    <ClCompile Include="..\Sphere.cpp" />
     <ClCompile Include="..\Window.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -1,7 +1,7 @@
 #include "Cube.h"
 #include "Window.h"
 
-Cube::Cube()
+Cube::Cube(GLuint shaderProgram) : shaderProgram(shaderProgram)
 {
 	toWorld = glm::mat4(1.0f);
 
@@ -50,10 +50,12 @@ Cube::~Cube()
 	glDeleteBuffers(1, &EBO);
 }
 
-void Cube::draw(GLuint shaderProgram)
-{ 
+void Cube::render()
+{
 	// Calculate the combination of the model and view (camera inverse) matrices
-	glm::mat4 modelview = Window::V * toWorld;
+	
+	//glm::mat4 modelview = Window::V * toWorld;
+	
 	// We need to calcullate this because modern OpenGL does not keep track of any matrix other than the viewport (D)
 	// Consequently, we need to forward the projection, view, and model matrices to the shader programs
 	// Get the location of the uniform variables "projection" and "modelview"
@@ -72,12 +74,6 @@ void Cube::draw(GLuint shaderProgram)
 
 void Cube::update()
 {
-	spin(1.0f);
-}
 
-void Cube::spin(float deg)
-{
-	// If you haven't figured it out from the last project, this is how you fix spin's behavior
-	toWorld = toWorld * glm::rotate(glm::mat4(1.0f), 1.0f / 180.0f * glm::pi<float>(), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
