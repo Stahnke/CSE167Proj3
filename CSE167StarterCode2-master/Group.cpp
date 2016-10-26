@@ -1,5 +1,14 @@
 #include "Group.h"
 
+Group::Group() {
+
+}
+
+Group::~Group() {
+
+
+}
+
 void Group::draw(glm::mat4 C) {
 	for each(Node* node in childList) {
 		node->draw(C);

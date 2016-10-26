@@ -1,10 +1,8 @@
 #include "window.h"
 
 const char* window_title = "GLFW Starter Project";
-Cube * cube;
-Cube * cube2;
-MatrixTransform * matTransform;
-MatrixTransform * matTransform2;
+
+MatrixTransform * robotArmy;
 Skybox * skybox;
 GLint shaderProgram;
 GLint skyboxShaderProgram;
@@ -38,6 +36,10 @@ const float m_ROTSCALE = 1.0f;
 const float m_ZOOMSCALE = 1.0f;
 const float m_TRANSSCALE = 0.1f;
 
+int Mode = 1;
+const int CAMERA = 1;
+const int ARMY = 2;
+
 glm::vec2 mouse_point;
 glm::vec3 lastPoint;
 
@@ -48,17 +50,22 @@ void Window::initialize_objects()
 	skyboxShaderProgram = LoadShaders(SKYBOX_VERTEX_SHADER_PATH, SKYBOX_FRAGMENT_SHADER_PATH);
 
 	glm::mat4 toWorld = glm::mat4(1.0f);
+	robotArmy = new MatrixTransform(toWorld);
+	
+	const int COL_SIZE = 10;
+	const int ROW_SIZE = 10;
+	const float SPACING = 15.0f;
 
-	//Set first cube at origin
-	cube = new Cube(shaderProgram);
-	matTransform = new MatrixTransform(toWorld);
-	matTransform->addChild(cube);
-
-	//Set second cube on top of first cube
-	cube2 = new Cube(shaderProgram);
-	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, 5.0f, 0.0f }) * toWorld;
-	matTransform2 = new MatrixTransform(toWorld);
-	matTransform2->addChild(cube2);
+	for (int i = 0; i < COL_SIZE; i++)
+	{
+		for (int j = 0; j < ROW_SIZE; j++)
+		{
+			MatrixTransform * curRobot = createRobot(toWorld);
+			robotArmy->addChild(curRobot);
+			toWorld = glm::translate(glm::mat4(1.0f), { SPACING, 0.0f, 0.0f }) * toWorld;
+		}
+		toWorld = glm::translate(glm::mat4(1.0f), { ROW_SIZE * -SPACING, 0.0f, -SPACING }) * toWorld;
+	}
 
 	//Set the skybox
 	skybox = new Skybox();
@@ -67,7 +74,7 @@ void Window::initialize_objects()
 // Treat this as a destructor function. Delete dynamically allocated memory here.
 void Window::clean_up()
 {
-	delete(cube);
+	delete(robotArmy);
 	glDeleteProgram(shaderProgram);
 	glDeleteProgram(skyboxShaderProgram);
 }
@@ -136,7 +143,7 @@ void Window::resize_callback(GLFWwindow* window, int width, int height)
 void Window::idle_callback()
 {
 	// Call the update function the cube
-	cube->update();
+	//cube->update();
 }
 
 void Window::display_callback(GLFWwindow* window)
@@ -152,14 +159,17 @@ void Window::display_callback(GLFWwindow* window)
 
 	// Render the skybox
 	skybox->draw(skyboxShaderProgram);
-
 	// Use the shader of programID
 	glUseProgram(shaderProgram);
 
-	// Render the cube
-	//cube->draw();
-	matTransform->draw(V);
-	matTransform2->draw(V);
+	// Render the robot army
+	milliseconds ms1 = duration_cast<milliseconds>(
+		system_clock::now().time_since_epoch());
+	robotArmy->draw(V);
+	milliseconds ms2 = duration_cast<milliseconds>(
+		system_clock::now().time_since_epoch());
+
+	cout << "Render Time: " << ms2.count() - ms1.count() << "ms" << endl;
 	
 	// Gets events, including input such as keyboard and mouse or window resizing
 	glfwPollEvents();
@@ -183,7 +193,27 @@ void Window::key_callback(GLFWwindow* window, int key, int scancode, int action,
 		//Reset camera
 		else if (key == GLFW_KEY_R)
 		{
-			resetCamera();
+			switch (Mode)
+			{
+			case CAMERA:
+				resetCamera();
+				break;
+			case ARMY:
+				resetArmy();
+				break;
+			}
+		}
+
+		//Camera movement mode
+		else if (key == GLFW_KEY_1)
+		{
+			Mode = CAMERA;
+		}
+
+		//Army movement mode
+		else if (key == GLFW_KEY_2)
+		{
+			Mode = ARMY;
 		}
 	}
 
@@ -198,9 +228,20 @@ void Window::key_callback(GLFWwindow* window, int key, int scancode, int action,
 		}
 		else if (key == GLFW_KEY_S) //Back
 		{
-			translateCamera({ 0.0f,0.0f,1.0f });
-			//cout << "z" << endl;
+			switch (Mode)
+			{
+			case CAMERA:
+				translateCamera({ 0.0f,0.0f,1.0f });
+				break;
+			case ARMY:
+				if(mods == GLFW_MOD_SHIFT)
+					scaleArmy({ 2.0f,2.0f,2.0f });
+				else
+					scaleArmy({ 0.5f,0.5f,0.5f });
+				break;
+			}
 		}
+			//cout << "z" << endl;
 		else if (key == GLFW_KEY_A) //Left
 		{
 			translateCamera({ -1.0f,0.0f,0.0f });
@@ -253,9 +294,17 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 			rot_angle = velocity * m_ROTSCALE;
 
 			//Apply the rotation
-
-			rotateCamera(-rot_angle, rotAxis);
+			switch (Mode)
+			{
+			case CAMERA:
+				rotateCamera(-rot_angle, rotAxis);
 			//rotateCamera({ direction.x * m_TRANSSCALE, direction.y * m_TRANSSCALE, 0 });
+				break;
+			case ARMY:
+				rotateArmy(rot_angle, rotAxis);
+				break;
+			}
+
 		}
 		break;
 	}
@@ -271,8 +320,15 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 		if (velocity > 0.0001) // If little movement - do nothing.
 		{
 			//Apply the translation
-			translateCamera({ direction.x * m_TRANSSCALE, direction.y * m_TRANSSCALE, 0 });
-			
+			switch (Mode)
+			{
+			case CAMERA:
+				translateCamera({ direction.x * m_TRANSSCALE, direction.y * m_TRANSSCALE, 0 });
+				break;
+			case ARMY:
+				translateArmy({ direction.x * m_TRANSSCALE, direction.y * m_TRANSSCALE, 0 });
+				break;
+			}
 		}
 		break;
 	}
@@ -309,8 +365,16 @@ void Window::mouse_button_callback(GLFWwindow * window, int button, int action, 
 
 void Window::scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
+	switch (Mode)
+	{
+	case CAMERA:
 		translateCamera({ 0,0, -1 * yoffset * m_ZOOMSCALE });
-		//cout << "SCROLLED: " << -1 * yoffset * m_ZOOMSCALE << endl;
+		break;
+	case ARMY:
+		translateArmy({ 0,0, -1 * yoffset * m_ZOOMSCALE });
+		break;
+	}
+
 }
 
 glm::vec3 Window::trackBallMapping(glm::vec2 point)
@@ -327,6 +391,7 @@ glm::vec3 Window::trackBallMapping(glm::vec2 point)
 	return v;  // return the mouse location on the surface of the trackball
 }
 
+//Camera transformations
 void Window::translateCamera(glm::vec3 transVec) {
 	camTransform = glm::translate(glm::mat4(1.0f), transVec) * camTransform;
 	//cout << "cam_pos.x = " << cam_pos.x << "cam_pos.y = " << cam_pos.y << "cam_pos.y = " << cam_pos.z << endl;
@@ -341,6 +406,26 @@ void Window::resetCamera() {
 	camTransform = glm::mat4(1.0f);
 	camRotate = glm::mat4(1.0f);
 }
+
+//Army transformations
+void Window::translateArmy(glm::vec3 transVec) {
+	robotArmy->M = glm::translate(glm::mat4(1.0f), transVec) * robotArmy->M;
+	//cout << "cam_pos.x = " << cam_pos.x << "cam_pos.y = " << cam_pos.y << "cam_pos.y = " << cam_pos.z << endl;
+}
+
+void Window::rotateArmy(float rot_angle, glm::vec3 rotAxis) {
+	robotArmy->M = glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * robotArmy->M;
+}
+
+void Window::scaleArmy(glm::vec3 transVec) {
+	robotArmy->M = glm::scale(glm::mat4(1.0f), transVec) * robotArmy->M;
+	//cout << "cam_pos.x = " << cam_pos.x << "cam_pos.y = " << cam_pos.y << "cam_pos.y = " << cam_pos.z << endl;
+}
+
+void Window::resetArmy() {
+	robotArmy->M = glm::mat4(1.0f);
+}
+
 
 void Window::transformCamera() {
 
@@ -360,4 +445,107 @@ void Window::transformCamera() {
 	V = glm::lookAt(outCam_pos, outCam_look_at, outCam_up);
 	
 	//cout << "x = " << outCam_look_at.x << " y = " << outCam_look_at.y << " z = " << outCam_look_at.z << endl;
+}
+
+MatrixTransform * Window::createRobot(glm::mat4 startMat) {
+
+	MatrixTransform * RobotMatrix;
+	MatrixTransform * matTransform;
+	MatrixTransform * matTransform2;
+	Cube * cube;
+
+	//Set up temp transform matrix
+	glm::mat4 toWorld = startMat;
+
+	//Create our prefab cube
+	cube = new Cube(shaderProgram);
+
+	//Set up Robot Matrix (full body)
+	RobotMatrix = new MatrixTransform(toWorld);
+
+	//Set 1st cube at origin (body)
+	toWorld = glm::mat4(1.0f);  //reset matrix
+	toWorld = glm::scale(glm::mat4(1.0f), { 0.75f, 1.0f, 0.75f }) * toWorld;	//Scale by 0.5
+	matTransform = new MatrixTransform(toWorld); //Set up first coordinate system
+	matTransform->addChild(cube);
+	RobotMatrix->addChild(matTransform);
+
+	//Set 2nd cube on top of first cube and shrink it (now in first cubes coordinate system) (head)
+	//Set up 2nd coordinate system
+	toWorld = glm::mat4(1.0f);  //reset matrix
+	toWorld = glm::scale(glm::mat4(1.0f), { 0.5f, 0.5f, 0.5f }) * toWorld;	//Scale by 0.5
+	toWorld = glm::rotate(glm::mat4(1.0f), -22.5f / 180.0f * glm::pi<float>(), { 0.0f, 1.0f, 0.0f }) * toWorld;
+	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, 3.25f, 0.0f }) * toWorld; //Translate up by 3.5
+	matTransform = new MatrixTransform(toWorld, 0.5f, { 0.0f, 1.0f, 0.0f }, 45.0f);;
+	matTransform->addChild(cube);	//Add cube to coordinate system
+	RobotMatrix->addChild(matTransform); //Add coordinat system to higher coordinate system
+
+	//(left shoulder pivot)
+	toWorld = glm::mat4(1.0f);  //reset matrix
+	toWorld = glm::rotate(glm::mat4(1.0f), 45.0f / 180.0f * glm::pi<float>(), { 1.0f, 0.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::translate(glm::mat4(1.0f), { 2.0f, 1.25f, 0.0f }) * toWorld; //Translate right by 4.5, up by 0.5
+	matTransform = new MatrixTransform(toWorld, 1.0f, { 1.0f, 0.0f, 0.0f }, 90.0f);
+	RobotMatrix->addChild(matTransform); //Add coordinat system to higher coordinate system
+	//(left arm)
+	toWorld = glm::mat4(1.0f);  //reset matrix
+	toWorld = glm::scale(glm::mat4(1.0f), { 1.0f, 0.25f, 0.25f }) * toWorld;	//Scale by long in x, and shrink in y,z
+	//toWorld = glm::rotate(glm::mat4(1.0f), 90.0f / 180.0f * glm::pi<float>(), { 0.0f, 0.0f, 1.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::rotate(glm::mat4(1.0f), -90.0f / 180.0f * glm::pi<float>(), { 0.0f, 1.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, 0.0f, 2.0f }) * toWorld; //Translate right by 4.5, up by 0.5
+	matTransform2 = new MatrixTransform(toWorld);
+	matTransform2->addChild(cube);	//Add cube to coordinate system
+	matTransform->addChild(matTransform2); //Add coordinat system to higher coordinate system
+
+
+	//(right shoulder pivot)
+	toWorld = glm::mat4(1.0f);  //reset matrix
+	toWorld = glm::rotate(glm::mat4(1.0f), 135.0f / 180.0f * glm::pi<float>(), { 1.0f, 0.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::translate(glm::mat4(1.0f), { -2.0f, 1.25f, 0.0f }) * toWorld; //Translate right by 4.5, up by 0.5
+	matTransform = new MatrixTransform(toWorld, -1.0f, { 1.0f, 0.0f, 0.0f }, 90.0f);
+	RobotMatrix->addChild(matTransform); //Add coordinat system to higher coordinate system
+	//(right arm)
+	toWorld = glm::mat4(1.0f);  //reset matrix
+	toWorld = glm::scale(glm::mat4(1.0f), { 1.0f, 0.25f, 0.25f }) * toWorld;	//Scale by long in x, and shrink in y,z
+	//toWorld = glm::rotate(glm::mat4(1.0f), 90.0f / 180.0f * glm::pi<float>(), { 0.0f, 0.0f, 1.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::rotate(glm::mat4(1.0f), -90.0f / 180.0f * glm::pi<float>(), { 0.0f, 1.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::translate(glm::mat4(1.0f), { -0.0f, 0.0f, 2.0f }) * toWorld; //Translate right by 4.5, up by 0.5
+	matTransform2 = new MatrixTransform(toWorld);
+	matTransform2->addChild(cube);	//Add cube to coordinate system
+	matTransform->addChild(matTransform2); //Add coordinat system to higher coordinate system
+
+
+
+	//(left leg pivot)
+	toWorld = glm::mat4(1.0f);  //reset matrix
+	toWorld = glm::rotate(glm::mat4(1.0f), 135.0f / 180.0f * glm::pi<float>(), { 1.0f, 0.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::translate(glm::mat4(1.0f), { 1.0f, -2.0f, 0.0f }) * toWorld; //Translate right by 4.5, up by 0.5
+	matTransform = new MatrixTransform(toWorld, -1.0f, { 1.0f, 0.0f, 0.0f }, 90.0f);
+	RobotMatrix->addChild(matTransform); //Add coordinat system to higher coordinate system
+	//(left leg)
+	toWorld = glm::mat4(1.0f);  //reset matrix
+	toWorld = glm::scale(glm::mat4(1.0f), { 1.0f, 0.25f, 0.25f }) * toWorld;	//Scale by long in x, and shrink in y,z
+	//toWorld = glm::rotate(glm::mat4(1.0f), 90.0f / 180.0f * glm::pi<float>(), { 0.0f, 0.0f, 1.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::rotate(glm::mat4(1.0f), -90.0f / 180.0f * glm::pi<float>(), { 0.0f, 1.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, 0.0f, 2.0f }) * toWorld; //Translate right by 4.5, up by 0.5
+	matTransform2 = new MatrixTransform(toWorld);
+	matTransform2->addChild(cube);	//Add cube to coordinate system
+	matTransform->addChild(matTransform2); //Add coordinat system to higher coordinate system
+
+	//(right leg pivot)
+	toWorld = glm::mat4(1.0f);  //reset matrix
+	toWorld = glm::rotate(glm::mat4(1.0f), 45.0f / 180.0f * glm::pi<float>(), { 1.0f, 0.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::translate(glm::mat4(1.0f), { -1.0f, -2.0f, 0.0f }) * toWorld; //Translate right by 4.5, up by 0.5
+	matTransform = new MatrixTransform(toWorld, 1.0f, { 1.0f, 0.0f, 0.0f }, 90.0f);
+	RobotMatrix->addChild(matTransform); //Add coordinat system to higher coordinate system
+	//(right leg)
+	toWorld = glm::mat4(1.0f);  //reset matrix
+	toWorld = glm::scale(glm::mat4(1.0f), { 1.0f, 0.25f, 0.25f }) * toWorld;	//Scale by long in x, and shrink in y,z
+	//toWorld = glm::rotate(glm::mat4(1.0f), 90.0f / 180.0f * glm::pi<float>(), { 0.0f, 0.0f, 1.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::rotate(glm::mat4(1.0f), -90.0f / 180.0f * glm::pi<float>(), { 0.0f, 1.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
+	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, 0.0f, 2.0f }) * toWorld; //Translate right by 4.5, up by 0.5
+	matTransform2 = new MatrixTransform(toWorld);
+	matTransform2->addChild(cube);	//Add cube to coordinate system
+	matTransform->addChild(matTransform2); //Add coordinat system to higher coordinate system
+
+	return RobotMatrix;
 }

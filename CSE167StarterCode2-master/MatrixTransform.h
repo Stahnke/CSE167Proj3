@@ -5,12 +5,17 @@
 
 class MatrixTransform : public Group {
 
-protected:
-	glm::mat4 M;
 
 public:
 
+	glm::mat4 M;
+	float deg;
+	glm::vec3 axis;
+	float angleMax;
+	float count = 0;
+
 	MatrixTransform(glm::mat4 m);
+	MatrixTransform(glm::mat4 m, float deg, glm::vec3 axis, float angleMax);
 	~MatrixTransform();
 
 	//Draw

@@ -26,6 +26,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 
+//for proj3
+#include <chrono>
+
+using namespace std::chrono;
 using namespace std;
 
 class Window
@@ -57,6 +61,13 @@ public:
 	static void rotateCamera(float rot_angle, glm::vec3 transVec);
 	static void resetCamera();
 	static void transformCamera();
+
+	static void translateArmy(glm::vec3 transVec);
+	static void scaleArmy(glm::vec3 transVec);
+	static void rotateArmy(float rot_angle, glm::vec3 transVec);
+	static void resetArmy();
+
+	static MatrixTransform * createRobot(glm::mat4 startMat);
 
 };
 

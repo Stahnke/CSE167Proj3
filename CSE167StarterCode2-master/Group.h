@@ -9,6 +9,9 @@ protected:
 
 public:
 
+	Group();
+	~Group();
+
 	//Add child
 	void addChild(Node * node);
 

@@ -11,5 +11,5 @@ out vec4 color;
 void main()
 {
     // Color everything a hot pink color. An alpha of 1.0f means it is not transparent.
-    color = vec4(0.1f, 0.1f, 0.7f, sampleExtraOutput);
+    color = vec4(0.2f, 0.5f, 0.2f, sampleExtraOutput);
 }
