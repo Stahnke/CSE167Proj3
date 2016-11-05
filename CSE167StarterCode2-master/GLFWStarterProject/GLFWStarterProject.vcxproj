@@ -25,9 +25,11 @@
     <ClInclude Include="..\main.h" />
     <ClInclude Include="..\MatrixTransform.h" />
     <ClInclude Include="..\Node.h" />
+    <ClInclude Include="..\RenderWith.h" />
     <ClInclude Include="..\shader.h" />
     <ClInclude Include="..\Skybox.h" />
     <ClInclude Include="..\Sphere.h" />
+    <ClInclude Include="..\SphereSolid.h" />
     <ClInclude Include="..\Window.h" />
   </ItemGroup>
   <ItemGroup>
@@ -37,9 +39,11 @@
     <ClCompile Include="..\main.cpp" />
     <ClCompile Include="..\MatrixTransform.cpp" />
     <ClCompile Include="..\Node.cpp" />
+    <ClCompile Include="..\RenderWith.cpp" />
     <ClCompile Include="..\shader.cpp" />
     <ClCompile Include="..\Skybox.cpp" />
     <ClCompile Include="..\Sphere.cpp" />
+    <ClCompile Include="..\SphereSolid.cpp" />
     <ClCompile Include="..\Window.cpp" />
   </ItemGroup>
   <ItemGroup>

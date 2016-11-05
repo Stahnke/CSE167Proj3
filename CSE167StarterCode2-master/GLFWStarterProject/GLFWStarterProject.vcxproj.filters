@@ -45,6 +45,12 @@
     <ClInclude Include="..\MatrixTransform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\RenderWith.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SphereSolid.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\main.cpp">
@@ -75,6 +81,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\MatrixTransform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\RenderWith.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SphereSolid.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

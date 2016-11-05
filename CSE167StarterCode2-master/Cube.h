@@ -22,13 +22,14 @@
 class Cube : public Geode
 {
 public:
-	Cube(GLuint shaderProgram);
+	Cube(GLuint shaderProgram, glm::vec3 color);
 	~Cube();
 
 	glm::mat4 toWorld;
 	GLuint shaderProgram;
+	glm::vec3 color;
 
-	void update();
+	void update(bool on, glm::vec3 points[6], glm::vec3 normals[6]);
 	void render();
 
 	// These variables are needed for the shader program

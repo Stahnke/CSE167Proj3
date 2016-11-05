@@ -25,8 +25,8 @@ class Node
 {
 public:
 
-	virtual void draw(glm::mat4 C) = 0;
-	virtual void update() = 0;
+	virtual void draw(glm::mat4 C, int mode, glm::vec3 color) = 0;
+	virtual void update(bool on, glm::vec3 points[6], glm::vec3 normals[6]) = 0;
 	void printAlive();
 };
 

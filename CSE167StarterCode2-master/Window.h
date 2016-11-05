@@ -12,6 +12,8 @@
 #include <GLFW/glfw3.h>
 #include "Cube.h"
 #include "Sphere.h"
+#include "SphereSolid.h"
+//#include "RenderWith.h"
 #include "MatrixTransform.h"
 #include "Skybox.h"
 #include "shader.h"
@@ -28,13 +30,28 @@
 
 //for proj3
 #include <chrono>
+#define ANG2RAD 3.14159265358979323846/180.0
 
 using namespace std::chrono;
 using namespace std;
 
 class Window
 {
+
+private:
+	enum {
+		TOP = 0, BOTTOM, LEFT,
+		RIGHT, NEARP, FARP
+	};
+
 public:
+
+	//frustum
+	static glm::vec3 planePos[6];
+	static glm::vec3 planeNorm[6];
+
+	static bool on;
+
 
 	static glm::mat4 camTransform;
 	static glm::mat4 camRotate;

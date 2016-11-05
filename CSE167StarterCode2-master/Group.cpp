@@ -6,12 +6,17 @@ Group::Group() {
 
 Group::~Group() {
 
-
 }
 
-void Group::draw(glm::mat4 C) {
+void Group::draw(glm::mat4 C, int mode, glm::vec3 color) {
 	for each(Node* node in childList) {
-		node->draw(C);
+		node->draw(C, mode, color);
+	}
+}
+
+void Group::update(bool on, glm::vec3 points[6], glm::vec3 normals[6]) {
+	for each(Node* node in childList) {
+		node->update(on, points, normals);
 	}
 }
 

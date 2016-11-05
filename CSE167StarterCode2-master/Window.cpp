@@ -15,9 +15,24 @@ GLint skyboxShaderProgram;
 #define SKYBOX_FRAGMENT_SHADER_PATH "../skyboxShader.frag"
 
 // Default camera parameters
-glm::vec3 cam_pos(0.0f, 0.0f, 0.0f);		// e  | Position of camera
-glm::vec3 cam_look_at(0.0f, 0.0f, -100.0f);	// d  | This is where the camera looks at
+glm::vec3 cam_pos(0.0f, 0.0f, 20.0f);		// e  | Position of camera
+glm::vec3 cam_look_at(0.0f, 0.0f, -1.0f);	// d  | This is where the camera looks at
 glm::vec3 cam_up(0.0f, 1.0f, 0.0f);			// up | What orientation "up" is
+
+glm::vec3 NEARPPos = cam_pos;
+glm::vec3 FARPPos = { cam_pos.x - 0.0f, cam_pos.y - 0.0f, cam_pos.z - 1000.0f };
+glm::vec3 TOPPos = { 0.0f, 20.0f, 0.0f };
+glm::vec3 BOTTOMPos = { 0.0f, -20.0f, 0.0f };
+glm::vec3 LEFTPos = { -20.0f, 0.0f, 0.0f };
+glm::vec3 RIGHTPos = { 20.0f, 0.0f, 0.0f };
+
+glm::vec3 NEARPNorm = { 0.0f, 0.0f, 1.0f };
+glm::vec3 FARPNorm = { 0.0f,0.0f,-1.0f };
+glm::vec3 TOPNorm = { 0.0f, 1.0f, 0.0f };
+glm::vec3 BOTTOMNorm = { 0.0f, -1.0f, 0.0f };
+glm::vec3 LEFTNorm = { -1.0f, 0.0f, 0.0f };
+glm::vec3 RIGHTNorm = { 1.0f, 0.0f, 0.0f };
+
 
 int Window::width;
 int Window::height;
@@ -40,21 +55,49 @@ int Mode = 1;
 const int CAMERA = 1;
 const int ARMY = 2;
 
+
+Cube * cubeGrey;
+Cube * cubeBlue;
+Cube * cubeYellow;
+
+
+SphereSolid * sphereWhite;
+Sphere * sphereBlack;
+
 glm::vec2 mouse_point;
 glm::vec3 lastPoint;
 
+//Frustum
+glm::vec3 Window::planePos[6];
+glm::vec3 Window::planeNorm[6];
+
+bool Window::on = true;
+
 void Window::initialize_objects()
 {
+
+	resetCamera();
+
+	
 	// Load the shader program. Make sure you have the correct filepath up top
 	shaderProgram = LoadShaders(VERTEX_SHADER_PATH, FRAGMENT_SHADER_PATH);
 	skyboxShaderProgram = LoadShaders(SKYBOX_VERTEX_SHADER_PATH, SKYBOX_FRAGMENT_SHADER_PATH);
 
 	glm::mat4 toWorld = glm::mat4(1.0f);
-	robotArmy = new MatrixTransform(toWorld);
+	robotArmy = new MatrixTransform(toWorld, false);
 	
-	const int COL_SIZE = 10;
-	const int ROW_SIZE = 10;
+	const int COL_SIZE = 50;
+	const int ROW_SIZE = 20;
 	const float SPACING = 15.0f;
+
+	//Create our prefab cube
+	cubeGrey = new Cube(shaderProgram, { 0.5f, 0.0f, 0.5f });
+	cubeBlue = new Cube(shaderProgram, { 0.0f, 0.0f, 1.0f });
+	cubeYellow = new Cube(shaderProgram, { 1.0f, 1.0f, 0.0f });
+
+	sphereWhite = new SphereSolid(shaderProgram, { 0.0f, 0.7f, 0.4f }, 1);
+	sphereBlack = new Sphere(shaderProgram, { 0.0f, 0.0f, 0.0f }, 0);
+
 
 	for (int i = 0; i < COL_SIZE; i++)
 	{
@@ -136,7 +179,9 @@ void Window::resize_callback(GLFWwindow* window, int width, int height)
 	if (height > 0)
 	{
 		P = glm::perspective(45.0f, (float)width / (float)height, 0.1f, 1000.0f);
+		//setCamInternals(45.0f, (float)width / (float)height, 0.1f, 1000.0f);
 		V = glm::lookAt(cam_pos, cam_look_at, cam_up);
+		//setCamDef(cam_pos, cam_look_at, cam_up);
 	}
 }
 
@@ -152,7 +197,7 @@ void Window::display_callback(GLFWwindow* window)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
 	//Transform the camera
-	transformCamera();
+	//transformCamera();
 
 	// Use the shader of programID
 	glUseProgram(skyboxShaderProgram);
@@ -162,10 +207,12 @@ void Window::display_callback(GLFWwindow* window)
 	// Use the shader of programID
 	glUseProgram(shaderProgram);
 
+
+	robotArmy->update(on, planePos, planeNorm);
 	// Render the robot army
 	milliseconds ms1 = duration_cast<milliseconds>(
 		system_clock::now().time_since_epoch());
-	robotArmy->draw(V);
+	robotArmy->draw(V, 0, { 0.0f,0.0f,0.0f });
 	milliseconds ms2 = duration_cast<milliseconds>(
 		system_clock::now().time_since_epoch());
 
@@ -214,6 +261,14 @@ void Window::key_callback(GLFWwindow* window, int key, int scancode, int action,
 		else if (key == GLFW_KEY_2)
 		{
 			Mode = ARMY;
+		}
+
+		else if (key == GLFW_KEY_C)
+		{
+			if (mods == GLFW_MOD_SHIFT)
+				on = true;
+			else
+				on = false;
 		}
 	}
 
@@ -297,8 +352,9 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 			switch (Mode)
 			{
 			case CAMERA:
-				rotateCamera(-rot_angle, rotAxis);
-			//rotateCamera({ direction.x * m_TRANSSCALE, direction.y * m_TRANSSCALE, 0 });
+				//rotateCamera(rot_angle, rotAxis);
+				rotateCamera( direction.x * m_ROTSCALE, {0.0f, 1.0f, 0.0f});
+				rotateCamera( -direction.y * m_ROTSCALE, {1.0f, 0.0f, 0.0f});
 				break;
 			case ARMY:
 				rotateArmy(rot_angle, rotAxis);
@@ -393,18 +449,113 @@ glm::vec3 Window::trackBallMapping(glm::vec2 point)
 
 //Camera transformations
 void Window::translateCamera(glm::vec3 transVec) {
-	camTransform = glm::translate(glm::mat4(1.0f), transVec) * camTransform;
+	V = glm::translate(glm::mat4(1.0f), transVec) * V;
+	//camTransform = glm::translate(glm::mat4(1.0f), transVec) * camTransform;
 	//cout << "cam_pos.x = " << cam_pos.x << "cam_pos.y = " << cam_pos.y << "cam_pos.y = " << cam_pos.z << endl;
+	//cam_pos = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(cam_pos, 1.0f));
+	//cam_look_at = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(cam_look_at, 1.0f));
+	//cam_up = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(cam_up, 0.0f));
+
+	//V = glm::lookAt(cam_pos, cam_look_at, cam_up);
+
+	NEARPPos = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(NEARPPos, 1.0f));
+	FARPPos = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(FARPPos, 1.0f));
+	TOPPos = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(TOPPos, 1.0f));
+	BOTTOMPos = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(BOTTOMPos, 1.0f));
+	LEFTPos = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(LEFTPos, 1.0f));
+	RIGHTPos = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(RIGHTPos, 1.0f));
+
+	NEARPNorm = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(NEARPNorm, 0.0f));
+	FARPNorm = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(FARPNorm, 0.0f));
+	TOPNorm = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(TOPNorm, 0.0f));
+	BOTTOMNorm = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(BOTTOMNorm, 0.0f));
+	LEFTNorm = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(LEFTNorm, 0.0f));
+	RIGHTNorm = glm::vec3(glm::translate(glm::mat4(1.0f), transVec) * glm::vec4(RIGHTNorm, 0.0f));
+
+	planePos[NEARP] = NEARPPos;
+	planeNorm[NEARP] = NEARPNorm;
+	planePos[FARP] = FARPPos;
+	planeNorm[FARP] = FARPNorm;
+	planePos[TOP] = TOPPos;
+	planeNorm[TOP] = TOPNorm;
+	planePos[BOTTOM] = BOTTOMPos;
+	planeNorm[BOTTOM] = BOTTOMNorm;
+	planePos[LEFT] = LEFTPos;
+	planeNorm[LEFT] = LEFTNorm;
+	planePos[RIGHT] = RIGHTPos;
+	planeNorm[RIGHT] = RIGHTNorm;
+
 }
 
 void Window::rotateCamera(float rot_angle, glm::vec3 rotAxis) {
-	camRotate = glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * camRotate;
-	camRotatePos = camRotatePos * glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis);
+	V = glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * V;
+	//camRotate = glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * camRotate;
+	//camRotatePos = camRotatePos * glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis);
+		
+	NEARPPos = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(NEARPPos,1.0f));
+	FARPPos = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(FARPPos, 1.0f));
+	TOPPos = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(TOPPos, 1.0f));
+	BOTTOMPos = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(BOTTOMPos, 1.0f));
+	LEFTPos = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(LEFTPos, 1.0f));
+	RIGHTPos = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(RIGHTPos, 1.0f));
+
+	NEARPNorm = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(NEARPNorm, 0.0f));
+	FARPNorm = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(FARPNorm, 0.0f));
+	TOPNorm = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(TOPNorm, 0.0f));
+	BOTTOMNorm = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(BOTTOMNorm, 0.0f));
+	LEFTNorm = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(LEFTNorm, 0.0f));
+	RIGHTNorm = glm::vec3(glm::rotate(glm::mat4(1.0f), rot_angle / 180.0f * glm::pi<float>(), rotAxis) * glm::vec4(RIGHTNorm, 0.0f));
+
+	planePos[NEARP] = NEARPPos;
+	planeNorm[NEARP] = NEARPNorm;
+	planePos[FARP] = FARPPos;
+	planeNorm[FARP] = FARPNorm;
+	planePos[TOP] = TOPPos;
+	planeNorm[TOP] = TOPNorm;
+	planePos[BOTTOM] = BOTTOMPos;
+	planeNorm[BOTTOM] = BOTTOMNorm;
+	planePos[LEFT] = LEFTPos;
+	planeNorm[LEFT] = LEFTNorm;
+	planePos[RIGHT] = RIGHTPos;
+	planeNorm[RIGHT] = RIGHTNorm;
+
+	//V = glm::lookAt(cam_pos, cam_look_at, cam_up);
 }
 
 void Window::resetCamera() {
-	camTransform = glm::mat4(1.0f);
-	camRotate = glm::mat4(1.0f);
+
+	V = glm::lookAt(cam_pos, cam_look_at, cam_up);	
+	
+	NEARPPos = cam_pos;
+	FARPPos = { cam_pos.x - 0.0f, cam_pos.y - 0.0f, cam_pos.z - 10000000.0f };
+	TOPPos = { 0.0f, 20.0f * 30, 0.0f };
+	BOTTOMPos = { 0.0f, -20.0f * 1000, 0.0f };
+	LEFTPos = { -20.0f * 100000, 0.0f, 0.0f };
+	RIGHTPos = { 20.0f * 100000, 0.0f, 0.0f };
+
+	NEARPNorm = { 0.0f, 0.0f, 1.0f };
+	FARPNorm = { 0.0f,0.0f,-1.0f };
+	TOPNorm = { 0.0f, 1.0f, 0.0f };
+	BOTTOMNorm = { 0.0f, -1.0f, 0.0f };
+	LEFTNorm = { -1.0f, 0.0f, 0.0f };
+	RIGHTNorm = { 1.0f, 0.0f, 0.0f };
+
+	planePos[NEARP] = NEARPPos;
+	planeNorm[NEARP] = NEARPNorm;
+	planePos[FARP] = FARPPos;
+	planeNorm[FARP] = FARPNorm;
+	planePos[TOP] = TOPPos;
+	planeNorm[TOP] = TOPNorm;
+	planePos[BOTTOM] = BOTTOMPos;
+	planeNorm[BOTTOM] = BOTTOMNorm;
+	planePos[LEFT] = LEFTPos;
+	planeNorm[LEFT] = LEFTNorm;
+	planePos[RIGHT] = RIGHTPos;
+	planeNorm[RIGHT] = RIGHTNorm;
+
+
+	//camTransform = glm::mat4(1.0f);
+	//camRotate = glm::mat4(1.0f);
 }
 
 //Army transformations
@@ -429,7 +580,7 @@ void Window::resetArmy() {
 
 void Window::transformCamera() {
 
-	glm::vec3 outCam_pos; // = cam_pos;
+	/*glm::vec3 outCam_pos; // = cam_pos;
 	outCam_pos = glm::vec3(camRotate * glm::vec4(cam_pos, 1.0f));
 	outCam_pos = glm::vec3(camTransform * glm::vec4(outCam_pos, 1.0f));
 	//outCam_pos = glm::vec3(camRotatePos * glm::vec4(outCam_pos, 1.0f));
@@ -442,7 +593,7 @@ void Window::transformCamera() {
 	//outCam_up = glm::vec3(camRotate * glm::vec4(cam_up, 1.0f));
 	//outCam_up = glm::vec3(camTransform * glm::vec4(outCam_up, 1.0f));
 	
-	V = glm::lookAt(outCam_pos, outCam_look_at, outCam_up);
+	V = glm::lookAt(outCam_pos, outCam_look_at, outCam_up);*/
 	
 	//cout << "x = " << outCam_look_at.x << " y = " << outCam_look_at.y << " z = " << outCam_look_at.z << endl;
 }
@@ -452,22 +603,29 @@ MatrixTransform * Window::createRobot(glm::mat4 startMat) {
 	MatrixTransform * RobotMatrix;
 	MatrixTransform * matTransform;
 	MatrixTransform * matTransform2;
-	Cube * cube;
+	//RenderWith * renderWith;
 
 	//Set up temp transform matrix
 	glm::mat4 toWorld = startMat;
 
-	//Create our prefab cube
-	cube = new Cube(shaderProgram);
-
 	//Set up Robot Matrix (full body)
-	RobotMatrix = new MatrixTransform(toWorld);
+	RobotMatrix = new MatrixTransform(toWorld, true);
+
+	//Set up culling sphere
+	toWorld = glm::mat4(1.0f);  //reset matrix
+	toWorld = glm::scale(glm::mat4(1.0f), { 5.5f, 5.5f, 5.5f }) * toWorld;	//Scale by 0.5
+	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, -1.0f, 0.0f }) * toWorld;
+	matTransform = new MatrixTransform(toWorld); //Set up first coordinate system
+	//renderWith = new RenderWith(0);
+	//renderWith->addChild(sphereBlack);
+	matTransform->addChild(sphereBlack);
+	RobotMatrix->addChild(matTransform);
 
 	//Set 1st cube at origin (body)
 	toWorld = glm::mat4(1.0f);  //reset matrix
-	toWorld = glm::scale(glm::mat4(1.0f), { 0.75f, 1.0f, 0.75f }) * toWorld;	//Scale by 0.5
+	toWorld = glm::scale(glm::mat4(1.0f), { 1.5f, 1.5f, 1.5f }) * toWorld;	//Scale by 0.5
 	matTransform = new MatrixTransform(toWorld); //Set up first coordinate system
-	matTransform->addChild(cube);
+	matTransform->addChild(sphereWhite);
 	RobotMatrix->addChild(matTransform);
 
 	//Set 2nd cube on top of first cube and shrink it (now in first cubes coordinate system) (head)
@@ -475,9 +633,9 @@ MatrixTransform * Window::createRobot(glm::mat4 startMat) {
 	toWorld = glm::mat4(1.0f);  //reset matrix
 	toWorld = glm::scale(glm::mat4(1.0f), { 0.5f, 0.5f, 0.5f }) * toWorld;	//Scale by 0.5
 	toWorld = glm::rotate(glm::mat4(1.0f), -22.5f / 180.0f * glm::pi<float>(), { 0.0f, 1.0f, 0.0f }) * toWorld;
-	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, 3.25f, 0.0f }) * toWorld; //Translate up by 3.5
+	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, 2.75f, 0.0f }) * toWorld; //Translate up by 3.5
 	matTransform = new MatrixTransform(toWorld, 0.5f, { 0.0f, 1.0f, 0.0f }, 45.0f);;
-	matTransform->addChild(cube);	//Add cube to coordinate system
+	matTransform->addChild(cubeGrey);	//Add cube to coordinate system
 	RobotMatrix->addChild(matTransform); //Add coordinat system to higher coordinate system
 
 	//(left shoulder pivot)
@@ -493,7 +651,7 @@ MatrixTransform * Window::createRobot(glm::mat4 startMat) {
 	toWorld = glm::rotate(glm::mat4(1.0f), -90.0f / 180.0f * glm::pi<float>(), { 0.0f, 1.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
 	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, 0.0f, 2.0f }) * toWorld; //Translate right by 4.5, up by 0.5
 	matTransform2 = new MatrixTransform(toWorld);
-	matTransform2->addChild(cube);	//Add cube to coordinate system
+	matTransform2->addChild(cubeBlue);	//Add cube to coordinate system
 	matTransform->addChild(matTransform2); //Add coordinat system to higher coordinate system
 
 
@@ -510,7 +668,7 @@ MatrixTransform * Window::createRobot(glm::mat4 startMat) {
 	toWorld = glm::rotate(glm::mat4(1.0f), -90.0f / 180.0f * glm::pi<float>(), { 0.0f, 1.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
 	toWorld = glm::translate(glm::mat4(1.0f), { -0.0f, 0.0f, 2.0f }) * toWorld; //Translate right by 4.5, up by 0.5
 	matTransform2 = new MatrixTransform(toWorld);
-	matTransform2->addChild(cube);	//Add cube to coordinate system
+	matTransform2->addChild(cubeBlue);	//Add cube to coordinate system
 	matTransform->addChild(matTransform2); //Add coordinat system to higher coordinate system
 
 
@@ -528,7 +686,7 @@ MatrixTransform * Window::createRobot(glm::mat4 startMat) {
 	toWorld = glm::rotate(glm::mat4(1.0f), -90.0f / 180.0f * glm::pi<float>(), { 0.0f, 1.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
 	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, 0.0f, 2.0f }) * toWorld; //Translate right by 4.5, up by 0.5
 	matTransform2 = new MatrixTransform(toWorld);
-	matTransform2->addChild(cube);	//Add cube to coordinate system
+	matTransform2->addChild(cubeYellow);	//Add cube to coordinate system
 	matTransform->addChild(matTransform2); //Add coordinat system to higher coordinate system
 
 	//(right leg pivot)
@@ -544,7 +702,7 @@ MatrixTransform * Window::createRobot(glm::mat4 startMat) {
 	toWorld = glm::rotate(glm::mat4(1.0f), -90.0f / 180.0f * glm::pi<float>(), { 0.0f, 1.0f, 0.0f }) * toWorld;	//Rotate downward in Z axis
 	toWorld = glm::translate(glm::mat4(1.0f), { 0.0f, 0.0f, 2.0f }) * toWorld; //Translate right by 4.5, up by 0.5
 	matTransform2 = new MatrixTransform(toWorld);
-	matTransform2->addChild(cube);	//Add cube to coordinate system
+	matTransform2->addChild(cubeYellow);	//Add cube to coordinate system
 	matTransform->addChild(matTransform2); //Add coordinat system to higher coordinate system
 
 	return RobotMatrix;
